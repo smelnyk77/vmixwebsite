@@ -1,55 +1,85 @@
 const express = require('express');
-const mysql = require('mysql2');
+const path = require('path');
+const fs = require('fs');
 const bodyParser = require('body-parser');
-const socketIo = require('socket.io');
-const http = require('http');
 
 const app = express();
-const server = http.createServer(app);
-const io = socketIo(server);
+const port = process.env.PORT || 3000;
 
-// Configuration de la base de données MySQL
-const db = mysql.createConnection({
-    host: 'smelnykfxbsteph.mysql.db', // Ajoute l'adresse de ton serveur MySQL
-    user: 'smelnykfxbsteph', // Ton nom d'utilisateur
-    password: 'dckgtjAp92', // Ton mot de passe
-    database: 'smelnykfxbsteph', // Nom de ta base de données
-});
-
-db.connect((err) => {
-    if (err) throw err;
-    console.log('Connecté à MySQL');
-});
-
+// Middleware pour analyser les requêtes JSON
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static('public')); // Dossier pour les fichiers statiques (CSS, JS, etc.)
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Endpoints pour gérer les entrées
-app.post('/api/entries', (req, res) => {
-    const { title, content, type } = req.body;
-    const sql = `INSERT INTO entries (title, content, type) VALUES (?, ?, ?)`;
-    db.query(sql, [title, content, type], (err, result) => {
-        if (err) throw err;
-        res.status(201).send({ id: result.insertId, title, content, type });
-    });
-});
+// Simuler une base de données en utilisant un fichier JSON
+const entriesFile = path.join(__dirname, 'entries.json');
 
+// Charger les entrées depuis le fichier JSON
+function loadEntries() {
+  if (fs.existsSync(entriesFile)) {
+    return JSON.parse(fs.readFileSync(entriesFile));
+  }
+  return [];
+}
+
+// Sauvegarder les entrées dans le fichier JSON
+function saveEntries(entries) {
+  fs.writeFileSync(entriesFile, JSON.stringify(entries, null, 2));
+}
+
+// Routes API pour les entrées
 app.get('/api/entries', (req, res) => {
-    const sql = `SELECT * FROM entries`;
-    db.query(sql, (err, results) => {
-        if (err) throw err;
-        res.send(results);
-    });
+  res.json(loadEntries());
 });
 
-// Endpoint pour jouer une animation
-app.post('/api/play', (req, res) => {
-    const { id } = req.body;
-    io.emit('playAnimation', id); // Emission d'un événement pour le front
-    res.send({ status: 'Animation lancée', id });
+app.get('/api/entries/:id', (req, res) => {
+  const entries = loadEntries();
+  const entry = entries.find(e => e.id === req.params.id);
+  res.json(entry || {});
 });
 
-server.listen(3000, () => {
-    console.log('Serveur démarré sur http://localhost:3000');
+app.post('/api/entries', (req, res) => {
+  const entries = loadEntries();
+  const newEntry = { id: Date.now().toString(), ...req.body };
+  entries.push(newEntry);
+  saveEntries(entries);
+  res.status(201).json(newEntry);
+});
+
+app.put('/api/entries/:id', (req, res) => {
+  const entries = loadEntries();
+  const index = entries.findIndex(e => e.id === req.params.id);
+  if (index !== -1) {
+    entries[index] = { ...entries[index], ...req.body };
+    saveEntries(entries);
+    res.json(entries[index]);
+  } else {
+    res.status(404).send('Entrée non trouvée');
+  }
+});
+
+app.delete('/api/entries/:id', (req, res) => {
+  const entries = loadEntries();
+  const filteredEntries = entries.filter(e => e.id !== req.params.id);
+  saveEntries(filteredEntries);
+  res.status(204).end();
+});
+
+app.get('/api/play/:id', (req, res) => {
+  const entries = loadEntries();
+  const entry = entries.find(e => e.id === req.params.id);
+  if (entry) {
+    // Simuler la lecture de l'entrée (remplace par ta logique d'animation)
+    res.send(`<h1>${entry.title}</h1><p>${entry.content}</p>`);
+  } else {
+    res.status(404).send('Entrée non trouvée');
+  }
+});
+
+// Route principale
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
 });

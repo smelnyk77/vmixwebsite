@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - VMix Website</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>Administration</h1>
+  <button onclick="window.location.href='edit.html'">Créer une Nouvelle Entrée</button>
+  <table>
+    <thead>
+      <tr>
+        <th>Titre</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="entries-list">
+      <!-- Les entrées seront chargées ici avec JavaScript -->
+    </tbody>
+  </table>
+
+  <script>
+    // Charger les entrées depuis l'API et les afficher
+    async function loadEntries() {
+      const response = await fetch('/api/entries');
+      const entries = await response.json();
+      const entriesList = document.getElementById('entries-list');
+      entriesList.innerHTML = entries.map(entry => `
+        <tr>
+          <td>${entry.title}</td>
+          <td>
+            <button onclick="playEntry('${entry.id}')">Jouer</button>
+            <button onclick="window.location.href='edit.html?id=${entry.id}'">Modifier</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    loadEntries();
+
+    function playEntry(id) {
+      window.open(`/api/play/${id}`, '_blank');
+    }
+  </script>
+</body>
+</html>
