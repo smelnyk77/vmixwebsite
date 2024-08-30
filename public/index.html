@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Animation</title>
+    <style>
+        body {
+            width: 1254px;
+            height: 584px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+        }
+        .animation {
+            animation: slideIn 2s forwards;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="content"></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        socket.on('playAnimation', (id) => {
+            fetch(`/api/entries/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    const contentDiv = document.getElementById('content');
+                    contentDiv.innerHTML = `<h1>${data.title}</h1><p>${data.content}</p>`;
+                    contentDiv.className = 'animation';
+                });
+        });
+    </script>
+</body>
+</html>
