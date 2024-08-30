@@ -1,47 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin - VMix Website</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <title>Admin</title>
 </head>
 <body>
-  <h1>Administration</h1>
-  <button onclick="window.location.href='edit.html'">Créer une Nouvelle Entrée</button>
-  <table>
-    <thead>
-      <tr>
-        <th>Titre</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody id="entries-list">
-      <!-- Les entrées seront chargées ici avec JavaScript -->
-    </tbody>
-  </table>
+    <h1>Gestion des Entrées</h1>
+    <table id="entries-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Titre</th>
+                <th>Type</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <button onclick="window.location.href='/edit.html'">Ajouter une Entrée</button>
 
-  <script>
-    // Charger les entrées depuis l'API et les afficher
-    async function loadEntries() {
-      const response = await fetch('/api/entries');
-      const entries = await response.json();
-      const entriesList = document.getElementById('entries-list');
-      entriesList.innerHTML = entries.map(entry => `
-        <tr>
-          <td>${entry.title}</td>
-          <td>
-            <button onclick="playEntry('${entry.id}')">Jouer</button>
-            <button onclick="window.location.href='edit.html?id=${entry.id}'">Modifier</button>
-          </td>
-        </tr>
-      `).join('');
-    }
-    loadEntries();
+    <script>
+        fetch('/api/entries')
+            .then(response => response.json())
+            .then(entries => {
+                const tbody = document.querySelector('#entries-table tbody');
+                entries.forEach(entry => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${entry.id}</td>
+                        <td>${entry.title}</td>
+                        <td>${entry.type}</td>
+                        <td>
+                            <button onclick="playAnimation(${entry.id})">Jouer</button>
+                            <button onclick="editEntry(${entry.id})">Modifier</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            });
 
-    function playEntry(id) {
-      window.open(`/api/play/${id}`, '_blank');
-    }
-  </script>
+        function playAnimation(id) {
+            fetch('/api/play', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+        }
+
+        function editEntry(id) {
+            window.location.href = `/edit.html?id=${id}`;
+        }
+    </script>
 </body>
 </html>
