@@ -2,54 +2,42 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin</title>
+    <script>
+        async function fetchEntries() {
+            try {
+                const response = await fetch('/api/entries');
+                if (!response.ok) {
+                    throw new Error('Erreur lors de la récupération des données');
+                }
+                const data = await response.json();
+                
+                // Afficher les données dans la console pour vérification
+                console.log('Données récupérées:', data);
+
+                const entriesContainer = document.getElementById('entries');
+                entriesContainer.innerHTML = '';
+
+                data.forEach(entry => {
+                    const entryDiv = document.createElement('div');
+                    entryDiv.className = 'entry';
+                    entryDiv.innerHTML = `
+                        <h3>${entry.title}</h3>
+                        <p>${entry.content}</p>
+                    `;
+                    entriesContainer.appendChild(entryDiv);
+                });
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+
+        window.onload = fetchEntries;
+    </script>
 </head>
 <body>
-    <h1>Gestion des Entrées</h1>
-    <table id="entries-table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Titre</th>
-                <th>Type</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-    <button onclick="window.location.href='/edit.html'">Ajouter une Entrée</button>
-
-    <script>
-        fetch('/api/entries')
-            .then(response => response.json())
-            .then(entries => {
-                const tbody = document.querySelector('#entries-table tbody');
-                entries.forEach(entry => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${entry.id}</td>
-                        <td>${entry.title}</td>
-                        <td>${entry.type}</td>
-                        <td>
-                            <button onclick="playAnimation(${entry.id})">Jouer</button>
-                            <button onclick="editEntry(${entry.id})">Modifier</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            });
-
-        function playAnimation(id) {
-            fetch('/api/play', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id })
-            });
-        }
-
-        function editEntry(id) {
-            window.location.href = `/edit.html?id=${id}`;
-        }
-    </script>
+    <h1>Liste des Entrées</h1>
+    <div id="entries"></div>
 </body>
 </html>
