@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
+const mysql = require('mysql2/promise');
 const bodyParser = require('body-parser');
 
 const app = express();
@@ -10,72 +10,97 @@ const port = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Simuler une base de données en utilisant un fichier JSON
-const entriesFile = path.join(__dirname, 'entries.json');
-
-// Charger les entrées depuis le fichier JSON
-function loadEntries() {
-  if (fs.existsSync(entriesFile)) {
-    return JSON.parse(fs.readFileSync(entriesFile));
-  }
-  return [];
+// Connexion à la base de données MySQL
+async function connectToDatabase() {
+  const connection = await mysql.createConnection({
+    host: process.env.DB_HOST,       // Nom d'hôte de la base de données
+    user: process.env.DB_USER,       // Nom d'utilisateur de la base de données
+    password: process.env.DB_PASSWORD, // Mot de passe de la base de données
+    database: process.env.DB_NAME,     // Nom de la base de données
+  });
+  return connection;
 }
 
-// Sauvegarder les entrées dans le fichier JSON
-function saveEntries(entries) {
-  fs.writeFileSync(entriesFile, JSON.stringify(entries, null, 2));
-}
-
-// Routes API pour les entrées
-app.get('/api/entries', (req, res) => {
-  res.json(loadEntries());
-});
-
-app.get('/api/entries/:id', (req, res) => {
-  const entries = loadEntries();
-  const entry = entries.find(e => e.id === req.params.id);
-  res.json(entry || {});
-});
-
-app.post('/api/entries', (req, res) => {
-  const entries = loadEntries();
-  const newEntry = { id: Date.now().toString(), ...req.body };
-  entries.push(newEntry);
-  saveEntries(entries);
-  res.status(201).json(newEntry);
-});
-
-app.put('/api/entries/:id', (req, res) => {
-  const entries = loadEntries();
-  const index = entries.findIndex(e => e.id === req.params.id);
-  if (index !== -1) {
-    entries[index] = { ...entries[index], ...req.body };
-    saveEntries(entries);
-    res.json(entries[index]);
-  } else {
-    res.status(404).send('Entrée non trouvée');
+// Route pour récupérer toutes les entrées
+app.get('/api/entries', async (req, res) => {
+  try {
+    const connection = await connectToDatabase();
+    const [rows] = await connection.query('SELECT * FROM entries');
+    res.json(rows);
+    await connection.end();
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur lors de la récupération des entrées' });
   }
 });
 
-app.delete('/api/entries/:id', (req, res) => {
-  const entries = loadEntries();
-  const filteredEntries = entries.filter(e => e.id !== req.params.id);
-  saveEntries(filteredEntries);
-  res.status(204).end();
-});
-
-app.get('/api/play/:id', (req, res) => {
-  const entries = loadEntries();
-  const entry = entries.find(e => e.id === req.params.id);
-  if (entry) {
-    // Simuler la lecture de l'entrée (remplace par ta logique d'animation)
-    res.send(`<h1>${entry.title}</h1><p>${entry.content}</p>`);
-  } else {
-    res.status(404).send('Entrée non trouvée');
+// Route pour récupérer une seule entrée par ID
+app.get('/api/entries/:id', async (req, res) => {
+  try {
+    const connection = await connectToDatabase();
+    const [rows] = await connection.query('SELECT * FROM entries WHERE id = ?', [req.params.id]);
+    res.json(rows[0] || {});
+    await connection.end();
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur lors de la récupération de l\'entrée' });
   }
 });
 
-// Route principale
+// Route pour créer une nouvelle entrée
+app.post('/api/entries', async (req, res) => {
+  try {
+    const connection = await connectToDatabase();
+    const { title, content } = req.body;
+    const [result] = await connection.query('INSERT INTO entries (title, content) VALUES (?, ?)', [title, content]);
+    res.status(201).json({ id: result.insertId, title, content });
+    await connection.end();
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur lors de la création de l\'entrée' });
+  }
+});
+
+// Route pour mettre à jour une entrée par ID
+app.put('/api/entries/:id', async (req, res) => {
+  try {
+    const connection = await connectToDatabase();
+    const { title, content } = req.body;
+    await connection.query('UPDATE entries SET title = ?, content = ? WHERE id = ?', [title, content, req.params.id]);
+    res.json({ id: req.params.id, title, content });
+    await connection.end();
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'entrée' });
+  }
+});
+
+// Route pour supprimer une entrée par ID
+app.delete('/api/entries/:id', async (req, res) => {
+  try {
+    const connection = await connectToDatabase();
+    await connection.query('DELETE FROM entries WHERE id = ?', [req.params.id]);
+    res.status(204).end();
+    await connection.end();
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur lors de la suppression de l\'entrée' });
+  }
+});
+
+// Route pour afficher une entrée (pour simuler la lecture d'une entrée sur le front)
+app.get('/api/play/:id', async (req, res) => {
+  try {
+    const connection = await connectToDatabase();
+    const [rows] = await connection.query('SELECT * FROM entries WHERE id = ?', [req.params.id]);
+    const entry = rows[0];
+    if (entry) {
+      res.send(`<h1>${entry.title}</h1><p>${entry.content}</p>`);
+    } else {
+      res.status(404).send('Entrée non trouvée');
+    }
+    await connection.end();
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur lors de la lecture de l\'entrée' });
+  }
+});
+
+// Route principale pour servir la page d'accueil
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
