@@ -50,10 +50,18 @@ app.post('/api/entries', async (req, res) => {
   try {
     const connection = await connectToDatabase();
     const { title, content } = req.body;
+
+    // Vérification des valeurs reçues
+    if (!title || !content) {
+      return res.status(400).json({ error: 'Title and content are required' });
+    }
+
     const [result] = await connection.query('INSERT INTO entries (title, content) VALUES (?, ?)', [title, content]);
+    
     res.status(201).json({ id: result.insertId, title, content });
     await connection.end();
   } catch (err) {
+    console.error('Error inserting data: ', err);
     res.status(500).json({ error: 'Erreur lors de la création de l\'entrée' });
   }
 });
